@@ -1,0 +1,161 @@
+options {
+  STATIC=false;
+  LOOKAHEAD=1;
+}
+
+
+PARSER_BEGIN(Assignment)
+import java.io.*;
+import java.util.*;
+
+
+public class Assignment {
+
+ public static class PLMFunction {
+    String functionName;
+    String parameterName;
+    String functionBody;
+
+    PLMFunction(String functionName, String parameterName, String functionBody) {
+      this.functionName = functionName;
+      this.parameterName = parameterName;
+      this.functionBody = functionBody;
+    }
+  }
+  
+  public static void main(String[] args) throws ParseException {
+    Assignment parser = new Assignment(System.in);
+    try {
+      parser.parse();
+    } catch (ParseException e) {
+      System.err.println(e.getMessage());
+    }
+  }
+}
+PARSER_END(Assignment)
+
+/* Token specifications */
+TOKEN : {
+  < DEF : "DEF" >
+| < FUNCTION_NAME : <UPPER> (<UPPER>)* >
+| < PARAMETER_NAME : <LOWER> (<LOWER>)* >
+| < INTEGER : (<DIGIT>)+ >
+| < ADD : "+" >
+| < MUL : "*" >
+| < LBRACE : "{" >
+| < RBRACE : "}" >
+| < LPAREN : "(" >
+| < RPAREN : ")" >
+| < SEMICOLON : ";" >
+| < UPPER : ["A"-"Z"] >
+| < LOWER : ["a"-"z"] >
+| < DIGIT : ["0"-"9"] >
+| < WHITESPACE : " " >
+}
+
+/* Production rules */
+
+void parse() : {
+  List<PLMFunction> functions = new ArrayList<PLMFunction>();
+  PLMFunction function;
+  while ((function = functionDefinition()) != null) {
+    functions.add(function);
+  }
+}
+
+PLMFunction functionDefinition() : {
+  String functionName;
+  String parameterName;
+  String functionBody;
+  Token t;
+}
+
+{
+  <DEF> <FUNCTION_NAME>
+  t = getToken(1);
+  functionName = t.image;
+  if (functionName.equals("MAIN")) {
+    <LBRACE>
+    functionBody = arithmeticExpression()
+    <RBRACE> <SEMICOLON>
+    return new PLMFunction(functionName, "", functionBody);
+  } else {
+    <PARAMETER_NAME>
+    t = getToken(1);
+    parameterName = t.image;
+    <LBRACE>
+    functionBody = arithmeticExpression()
+    <RBRACE> <SEMICOLON>
+    return new PLMFunction(functionName, parameterName, functionBody);
+  }
+}
+
+String arithmeticExpression() : {
+  StringBuilder expression = new StringBuilder();
+  String term;
+}
+{
+  term = additionTerm()
+  expression.append(term);
+  while (true) {
+    if (getToken(1).kind == ADD) {
+      <ADD>
+      term = additionTerm();
+      expression.append("+").append(term);
+    } else {
+      break;
+    }
+  }
+  return expression.toString();
+}
+
+String additionTerm() : {
+  StringBuilder term = new StringBuilder();
+  String factor;
+}
+{
+  factor = multiplicationFactor()
+  term.append(factor);
+  while (true) {
+    if (getToken(1).kind == MUL) {
+      <MUL>
+      factor = multiplicationFactor();
+      term.append("*").append(factor);
+    } else {
+      break;
+    }
+  }
+  return term.toString();
+}
+
+String multiplicationFactor() : {
+  Token t;
+}
+{
+  t = <INTEGER>
+  | <PARAMETER_NAME>
+  | <FUNCTION_NAME>
+  if (t.kind == FUNCTION_NAME) {
+    <LPAREN>
+    String argument = arithmeticExpression()
+    <RPAREN>
+    return t.image + "(" + argument + ")";
+  } else {
+    return t.image;
+  }
+}
+
+
+String functionBody() : {
+  StringBuffer body = new StringBuffer();
+  Token t;
+  while (true) {
+    try {
+      t = <INTEGER> | <PARAMETER_NAME> | <FUNCTION_NAME> | <ADD> | <MUL> | <LPAREN> | <RPAREN> ;
+      body.append(t.image);
+    } catch (ParseException e) {
+      break;
+    }
+  }
+  return body.toString();
+}
